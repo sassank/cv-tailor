@@ -1,75 +1,80 @@
-# React + TypeScript + Vite
+# CV Tailor
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Adaptez votre CV à chaque offre d'emploi en quelques secondes, avec un PDF lisible par les logiciels de tri (ATS).
 
-Currently, two official plugins are available:
+**Démo :** https://cv-tailor-blue.vercel.app
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Fonctionnement
 
-## React Compiler
+1. **Mon CV** : importez votre CV (PDF ou DOCX). Il est structuré automatiquement, puis vous le vérifiez et le complétez une seule fois. Il sert ensuite de base à toutes vos candidatures.
+2. **Candidature** : collez le texte d'une offre. L'application analyse l'offre, propose des ajustements que vous acceptez ou refusez, puis génère :
+   - un **CV adapté** à l'offre, en 1 ou 2 pages maximum ;
+   - une **lettre de motivation** (ton professionnel ou direct, format court ou standard).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Points clés
 
-## Expanding the ESLint configuration
+- **Test ATS intégré** : affiche le texte extrait du PDF généré, dans l'ordre de lecture, comme le ferait un logiciel de tri (test « Ctrl+A, Ctrl+C »).
+- **Données locales** : le CV est enregistré automatiquement dans le navigateur. Vous pouvez télécharger une sauvegarde et la restaurer sur un autre appareil.
+- **Accès protégé** : les appels à l'IA sont protégés par un mot de passe d'application.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Stack technique
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Front-end** : React, TypeScript et Vite
+- **API** : fonctions serverless Vercel (dossier `api/`)
+- **IA** : API OpenAI
+- **Validation** : schémas partagés entre le front et l'API (`shared/schemas`)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Routes API
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Route          | Rôle                                                |
+| -------------- | --------------------------------------------------- |
+| `/api/extract` | Structure le texte brut d'un CV                     |
+| `/api/analyze` | Analyse une offre au regard du CV                   |
+| `/api/tailor`  | Génère le CV adapté à partir des ajustements acceptés |
+| `/api/letter`  | Génère la lettre de motivation                      |
 
+Chaque route vérifie l'en-tête `X-App-Password`. Le mot de passe est demandé une fois dans le navigateur, puis mémorisé localement.
+
+## Installation en local
+
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Créez un fichier `.env.local` à la racine (il ne doit pas être commité) :
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+OPENAI_API_KEY=sk-...
+APP_PASSWORD=un-mot-de-passe-long   # facultatif en local : sans lui, l'accès est libre
 ```
+
+Lancez le projet avec la CLI Vercel, pour que les routes `/api` fonctionnent aussi :
+
+```bash
+npx vercel dev
+```
+
+`npm run dev` lance uniquement le front Vite, sans l'API.
+
+## Déploiement sur Vercel
+
+Ajoutez les variables d'environnement, en type **Secret** :
+
+```bash
+vercel env add OPENAI_API_KEY --environment production
+vercel env add APP_PASSWORD --environment production
+```
+
+Faites de même avec `--environment preview` pour protéger les déploiements de prévisualisation. Puis déployez :
+
+```bash
+vercel --prod
+```
+
+Une variable ajoutée ou modifiée ne s'applique qu'après un nouveau déploiement.
+
+### Sécurité
+
+- Ne préfixez jamais ces variables par `VITE_` : elles seraient incluses dans le code envoyé au navigateur.
+- Fixez une limite de dépense mensuelle dans les paramètres de votre compte OpenAI.
+- Le mot de passe est comparé côté serveur, en temps constant.
